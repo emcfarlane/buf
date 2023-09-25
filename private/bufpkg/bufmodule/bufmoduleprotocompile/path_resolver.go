@@ -22,6 +22,7 @@ import (
 
 	"github.com/bufbuild/buf/private/bufpkg/bufmodule"
 	"github.com/bufbuild/buf/private/bufpkg/bufmodule/bufmoduleref"
+	"github.com/bufbuild/buf/private/gen/data/datavalidate"
 	"github.com/bufbuild/buf/private/gen/data/datawkt"
 	"github.com/bufbuild/buf/private/pkg/storage"
 	"go.uber.org/multierr"
@@ -56,7 +57,7 @@ func newParserAccessorHandler(
 	}
 }
 
-func (p *parserAccessorHandler) Open(path string) (_ io.ReadCloser, retErr error) {
+func (p *parserAccessorHandler) Open(path string) (o io.ReadCloser, retErr error) {
 	moduleFile, moduleErr := p.moduleFileReader.GetModuleFile(p.ctx, path)
 	if moduleErr != nil {
 		if !storage.IsNotExist(moduleErr) {
@@ -71,6 +72,12 @@ func (p *parserAccessorHandler) Open(path string) (_ io.ReadCloser, retErr error
 				return nil, err
 			}
 			return wktModuleFile, nil
+		}
+		if validateModuleFile, validateErr := datavalidate.ReadBucket.Get(p.ctx, path); validateErr == nil {
+			if err := p.addPath(path, path, true, nil, ""); err != nil {
+				return nil, err
+			}
+			return validateModuleFile, nil
 		}
 		return nil, moduleErr
 	}

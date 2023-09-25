@@ -25,6 +25,12 @@ import (
 )
 
 var (
+	// CELFieldRuleBuilder is a rule builder.
+	CELFieldRuleBuilder = internal.NewNopRuleBuilder(
+		"CEL_FIELD",
+		"Validate fields with CEL expressions",
+		newAdapter(buflintcheck.CheckCELField),
+	)
 	// CommentEnumRuleBuilder is a rule builder.
 	CommentEnumRuleBuilder = internal.NewNopRuleBuilder(
 		"COMMENT_ENUM",

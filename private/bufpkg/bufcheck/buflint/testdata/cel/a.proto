@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package a;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+message Product {
+  string price = 1 [ (buf.validate.field).cel = {
+    id : "product.price",
+    message : "Price must be positive and include a valid currency symbol ($ "
+              "or £)",
+    expression : "(this.startsWith('$') || this.startsWith('£')) && "
+                 "double(this.substring(1)) > 0 typo..."
+  } ];
+}
+
+message Transaction {
+  google.protobuf.Timestamp purchase_date = 1;
+  google.protobuf.Timestamp delivery_date = 2;
+
+  option (buf.validate.message).cel = {
+    id : "transaction.delivery_date",
+    message : "Delivery date must be after purchase date",
+    expression : "this.delivery_date > this.purchase_date"
+  };
+}
+
+message User {
+  int32 age = 1 [ (buf.validate.field).cel = {
+    id : "user.age",
+    expression : "this < 18 ? 'User must be at least 18 years old': ''"
+  } ];
+}

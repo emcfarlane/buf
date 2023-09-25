@@ -32,7 +32,7 @@ import (
 	"github.com/bufbuild/buf/private/pkg/storage/storageos"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 )
 
 // Hint on how to get these:
@@ -40,6 +40,15 @@ import (
 // 2. buf lint --error-format=json | jq '[.path, .start_line, .start_column, .end_line, .end_column, .type] | @csv' --raw-output
 //      or
 //    buf lint --error-format=json | jq -r '"bufanalysistesting.NewFileAnnotation(t, \"\(.path)\", \(.start_line|tostring), \(.start_column|tostring), \(.end_line|tostring), \(.end_column|tostring), \"\(.type)\"),"'
+
+func TestRunCel(t *testing.T) {
+	t.Parallel()
+	testLint(
+		t,
+		"cel",
+		bufanalysistesting.NewFileAnnotation(t, "a.proto", 8, 10, 8, 15, "CEL_FIELD"),
+	)
+}
 
 func TestRunComments(t *testing.T) {
 	t.Parallel()
@@ -975,7 +984,7 @@ func testLintWithModifiers(
 ) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	logger := zap.NewNop()
+	logger := zaptest.NewLogger(t)
 
 	dirPath := filepath.Join("testdata", relDirPath)
 
@@ -998,7 +1007,7 @@ func testLintWithModifiers(
 	)
 	require.NoError(t, err)
 	image, fileAnnotations, err := bufimagebuild.NewBuilder(
-		zap.NewNop(),
+		logger,
 		bufmodule.NewNopModuleReader(),
 	).Build(
 		ctx,

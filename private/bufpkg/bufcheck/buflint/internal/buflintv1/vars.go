@@ -22,6 +22,7 @@ import (
 var (
 	// v1RuleBuilders are the rule builders.
 	v1RuleBuilders = []*internal.RuleBuilder{
+		buflintbuild.CELFieldRuleBuilder,
 		buflintbuild.CommentEnumRuleBuilder,
 		buflintbuild.CommentEnumValueRuleBuilder,
 		buflintbuild.CommentFieldRuleBuilder,
@@ -73,6 +74,9 @@ var (
 	}
 	// v1IDToCategories associates IDs to categories.
 	v1IDToCategories = map[string][]string{
+		"CEL_FIELD": {
+			"DEFAULT",
+		},
 		"COMMENT_ENUM": {
 			"COMMENTS",
 		},

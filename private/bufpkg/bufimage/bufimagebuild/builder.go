@@ -317,7 +317,9 @@ func getBuildResult(
 	compiler := protocompile.Compiler{
 		MaxParallelism: thread.Parallelism(),
 		SourceInfoMode: sourceInfoMode,
-		Resolver:       &protocompile.SourceResolver{Accessor: parserAccessorHandler.Open},
+		Resolver: &protocompile.SourceResolver{
+			Accessor: parserAccessorHandler.Open,
+		},
 		Reporter: reporter.NewReporter(
 			func(errorWithPos reporter.ErrorWithPos) error {
 				errorsWithPos = append(errorsWithPos, errorWithPos)

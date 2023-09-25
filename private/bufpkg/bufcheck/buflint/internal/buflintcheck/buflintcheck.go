@@ -18,17 +18,36 @@
 package buflintcheck
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
+	//"buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	"github.com/bufbuild/buf/private/bufpkg/bufanalysis"
 	"github.com/bufbuild/buf/private/bufpkg/bufcheck/internal"
+	"github.com/bufbuild/buf/private/bufpkg/bufconfig"
+	"github.com/bufbuild/buf/private/bufpkg/bufimage"
+	"github.com/bufbuild/buf/private/bufpkg/bufimage/bufimagebuild"
+	"github.com/bufbuild/buf/private/bufpkg/bufmodule"
+	"github.com/bufbuild/buf/private/bufpkg/bufmodule/bufmodulebuild"
+	"github.com/bufbuild/buf/private/gen/data/datavalidate"
 	"github.com/bufbuild/buf/private/pkg/normalpath"
 	"github.com/bufbuild/buf/private/pkg/protosource"
 	"github.com/bufbuild/buf/private/pkg/protoversion"
+	"github.com/bufbuild/buf/private/pkg/storage"
 	"github.com/bufbuild/buf/private/pkg/stringutil"
+	"go.uber.org/zap"
+
+	//protovalidate "github.com/bufbuild/protovalidate-go"
+	"github.com/google/cel-go/cel"
+	"github.com/google/cel-go/common/types/ref"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/dynamicpb"
 )
 
 const (
@@ -971,4 +990,119 @@ func checkSyntaxSpecified(add addFunc, file protosource.File) error {
 		add(file, file.SyntaxLocation(), nil, `Files must have a syntax explicitly specified. If no syntax is specified, the file defaults to "proto2".`)
 	}
 	return nil
+}
+
+// CheckCELField is a check function.
+var CheckCELField = newMessageCheckFunc(checkMessageValidateCEL)
+
+var validateImage bufimage.Image
+var validateFiles *protoregistry.Files
+
+func init() {
+	ctx := context.Background()
+	logger := zap.NewNop()
+	sourceConfig, err := bufconfig.GetConfigForBucket(
+		ctx,
+		storage.NopReadBucketCloser(datavalidate.ReadBucket),
+	)
+	if err != nil {
+		panic(err)
+	}
+	module, err := bufmodulebuild.NewModuleBucketBuilder().BuildForBucket(
+		ctx,
+		datavalidate.ReadBucket,
+		sourceConfig.Build,
+	)
+	if err != nil {
+		panic(err)
+	}
+	image, _, err := bufimagebuild.NewBuilder(logger, bufmodule.NewNopModuleReader()).Build(ctx, module)
+	if err != nil {
+		panic(err)
+	}
+	validateImage = image
+
+	var files []*descriptorpb.FileDescriptorProto
+	for _, file := range image.Files() {
+		files = append(files, file.Proto())
+	}
+	fileSet, err := protodesc.NewFiles(&descriptorpb.FileDescriptorSet{
+		File: files,
+	})
+	if err != nil {
+		panic(err)
+	}
+	validateFiles = fileSet
+}
+
+func checkMessageValidateCEL(add addFunc, message protosource.Message) error {
+	env, err := cel.NewEnv()
+	if err != nil {
+		return fmt.Errorf(
+			"failed to construct CEL environment: %w", err)
+	}
+
+	// TODO: how do we depend on validate.proto?
+	file, err := validateFiles.FindFileByPath("buf/validate/validate.proto")
+	if err != nil {
+		return err
+	}
+	fieldDesc := file.Extensions().ByName("field")
+	fieldExtType := dynamicpb.NewExtensionType(fieldDesc)
+
+	protoregistry.GlobalFiles.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
+		return true
+	})
+
+	for _, field := range message.Fields() {
+		value, ok := field.OptionExtension(fieldExtType)
+		if !ok {
+			continue
+		}
+		msg, ok := value.(protoreflect.Message)
+		if !ok {
+			continue
+		}
+		fcDesc := msg.Descriptor()
+		celFieldDesc := fcDesc.Fields().ByName("cel")
+
+		cels := msg.Get(celFieldDesc).List()
+		for i := 0; i < cels.Len(); i++ {
+			cel := cels.Get(i).Message()
+			celDesc := cel.Descriptor()
+			expFieldDesc := celDesc.Fields().ByName("expression")
+
+			exp := cel.Get(expFieldDesc).String()
+
+			// TODO: https://github.com/bufbuild/protovalidate-go/blob/bfb9d45b6c5dbe90094815bd903b8798f2b94fac/internal/evaluator/builder.go#L268
+
+			_, issues := env.Compile(exp)
+			if issues != nil {
+				add(
+					field,
+					field.NameLocation(),
+					// also check the message for this comment ignore
+					// this allows users to set this "globally" for a message
+					[]protosource.Location{
+						field.Message().Location(),
+					},
+					issues.String(),
+				)
+			}
+		}
+	}
+	return nil
+}
+
+type celRefType struct {
+	protosource.Message
+}
+
+var _ ref.Type = (*celRefType)(nil)
+
+func (c *celRefType) HasTrait(trait int) bool {
+	return false
+}
+func (c *celRefType) TypeName() string {
+	return c.Message.Name()
 }

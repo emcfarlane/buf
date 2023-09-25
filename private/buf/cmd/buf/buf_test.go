@@ -514,6 +514,7 @@ PACKAGE_SAME_SWIFT_PREFIX         BASIC, DEFAULT           Checks that all files
 RPC_PASCAL_CASE                   BASIC, DEFAULT           Checks that RPCs are PascalCase.
 SERVICE_PASCAL_CASE               BASIC, DEFAULT           Checks that services are PascalCase.
 SYNTAX_SPECIFIED                  BASIC, DEFAULT           Checks that all files have a syntax specified.
+CEL_FIELD                         DEFAULT                  Checks that CEL fields are valid.
 ENUM_VALUE_PREFIX                 DEFAULT                  Checks that enum values are prefixed with ENUM_NAME_UPPER_SNAKE_CASE.
 ENUM_ZERO_VALUE_SUFFIX            DEFAULT                  Checks that enum zero values are suffixed with _UNSPECIFIED (suffix is configurable).
 FILE_LOWER_SNAKE_CASE             DEFAULT                  Checks that filenames are lower_snake_case.

@@ -36,13 +36,17 @@ func newOptionExtensionDescriptor(message proto.Message, optionsPath []int32, lo
 }
 
 func (o *optionExtensionDescriptor) OptionExtension(extensionType protoreflect.ExtensionType) (interface{}, bool) {
-	if extensionType.TypeDescriptor().ContainingMessage().FullName() != o.message.ProtoReflect().Descriptor().FullName() {
+	if o.message == nil {
 		return nil, false
 	}
-	if !proto.HasExtension(o.message, extensionType) {
+	if extensionType == nil || o.message.ProtoReflect().Descriptor().FullName() != extensionType.TypeDescriptor().ContainingMessage().FullName() {
 		return nil, false
 	}
-	return proto.GetExtension(o.message, extensionType), true
+	value := o.message.ProtoReflect().Get(extensionType.TypeDescriptor())
+	if !value.IsValid() || !value.Message().IsValid() {
+		return nil, false
+	}
+	return extensionType.InterfaceOf(value), true
 }
 
 func (o *optionExtensionDescriptor) OptionExtensionLocation(extensionType protoreflect.ExtensionType, extraPath ...int32) Location {

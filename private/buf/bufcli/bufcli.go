@@ -42,6 +42,7 @@ import (
 	"github.com/bufbuild/buf/private/bufpkg/bufmodule/bufmodulecache"
 	"github.com/bufbuild/buf/private/bufpkg/bufmodule/bufmoduleref"
 	"github.com/bufbuild/buf/private/bufpkg/buftransport"
+	"github.com/bufbuild/buf/private/gen/data/datavalidate"
 	"github.com/bufbuild/buf/private/gen/data/datawkt"
 	registryv1alpha1 "github.com/bufbuild/buf/private/gen/proto/go/buf/alpha/registry/v1alpha1"
 	"github.com/bufbuild/buf/private/pkg/app"
