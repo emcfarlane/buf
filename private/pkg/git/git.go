@@ -249,8 +249,23 @@ func CheckForUncommittedGitChanges(
 	runner command.Runner,
 	dir string,
 ) ([]string, error) {
+	fmt.Println("--- DEBUG ---")
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
+	if err := runner.Run(
+		ctx,
+		"pwd",
+		command.RunWithStdout(stdout),
+		command.RunWithStderr(stderr),
+		command.RunWithDir(dir),
+	); err != nil {
+		return nil, fmt.Errorf("failed to get current working directory: %w: %s", err, stderr.String())
+	}
+	fmt.Println("PWD:", stdout.String())
+	fmt.Println("^^^ DEBUG ^^^")
+
+	stdout = bytes.NewBuffer(nil)
+	stderr = bytes.NewBuffer(nil)
 	var modifiedFiles []string
 	// Unstaged changes
 	if err := runner.Run(
